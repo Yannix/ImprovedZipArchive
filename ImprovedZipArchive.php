@@ -1,7 +1,11 @@
 <?php
 /**
+ * Script encodé en UTF-8
+ *
  * Historique :
  * - 01/06/2010 : version initiale
+ * - 25/09/2010 : toute conversion illégale lève une exception
+ * (caractère qui ne peut être représenté dans le jeu de destination - d'Unicode à un jeu restreint comme latin1)
  *
  * Auteur : julp (http://julp.developpez.com/) - adressez commentaires, suggestions, améliorations, etc
  *
@@ -86,7 +90,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
-            throw new Exception($errors[$ret], $ret);
+            throw new Exception($this->_fileToPHP($errors[$ret]), $ret);
         }
     }
 
@@ -143,16 +147,50 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     /**
      * (visibilité resteinte)
+     * Aide à la conversion d'encodage des chaînes
+     *
+     * Paramètres :
+     * + $from : encodage d'origine
+     * + $to : encodage désiré
+     * + $string : la chaîne à convertir
+     *
+     * Retour : la chaîne convertie
+     **/
+    protected static function _iconv_helper($from, $to, $string)
+    {
+        if (($ret = iconv($from, $to, $string)) === FALSE) {
+            throw new Exception($this->_fileToPHP(sprintf('Caractère illégal dans la chaîne de départ ou suite à la conversion de "%s" à "%s"', $from, $to)));
+        }
+
+        return $ret;
+    }
+
+    /**
+     * (visibilité resteinte)
+     * Conversion d'encodage des chaînes file => PHP
+     *
+     * Paramètres :
+     * + $string : la chaîne à convertir, d'origine UTF-8
+     *
+     * Retour : la chaîne convertie, destinée à PHP
+     **/
+    protected function _fileToPHP($string)
+    {
+        return self::_iconv_helper('UTF-8', $this->_php_int_enc . '//TRANSLIT', $string);
+    }
+
+    /**
+     * (visibilité resteinte)
      * Conversion d'encodage des chaînes PHP => ZIP
      *
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine PHP
      *
-     * Retour : la chaîne convertie, destinée à zip, à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée à zip
      **/
     protected function _phpToZip($string)
     {
-        return iconv($this->_php_int_enc, $this->_zip_int_enc, $string);
+        return self::_iconv_helper($this->_php_int_enc, $this->_zip_int_enc, $string);
     }
 
     /**
@@ -162,11 +200,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine zip
      *
-     * Retour : la chaîne convertie, destinée à PHP, à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée à PHP
      **/
     protected function _zipToPHP($string)
     {
-        return iconv($this->_zip_int_enc, $this->_php_int_enc, $string);
+        return self::_iconv_helper($this->_zip_int_enc, $this->_php_int_enc, $string);
     }
 
     /**
@@ -176,11 +214,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine zip
      *
-     * Retour : la chaîne convertie, destinée au système (de fichiers), à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée au système (de fichiers)
      **/
     protected function _zipToFs($string)
     {
-        return iconv($this->_zip_int_enc, $this->_fs_enc, $string);
+        return self::_iconv_helper($this->_zip_int_enc, $this->_fs_enc, $string);
     }
 
     /**
@@ -190,11 +228,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine système (de fichiers)
      *
-     * Retour : la chaîne convertie, destinée à zip, à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée à zip
      **/
     protected function _fsToZip($string)
     {
-        return iconv($this->_fs_enc, $this->_zip_int_enc, $string);
+        return self::_iconv_helper($this->_fs_enc, $this->_zip_int_enc, $string);
     }
 
     /**
@@ -204,11 +242,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine PHP
      *
-     * Retour : la chaîne convertie, destinée au système (de fichiers), à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée au système (de fichiers)
      **/
     protected function _phpToFs($string)
     {
-        return iconv($this->_php_int_enc, $this->_fs_enc, $string);
+        return self::_iconv_helper($this->_php_int_enc, $this->_fs_enc, $string);
     }
 
     /**
@@ -218,11 +256,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $string : la chaîne à convertir, d'origine système (de fichiers)
      *
-     * Retour : la chaîne convertie, destinée à PHP, à moins d'une erreur (FALSE)
+     * Retour : la chaîne convertie, destinée à PHP
      **/
     protected function _fsToPHP($string)
     {
-        return iconv($this->_fs_enc, $this->_php_int_enc, $string);
+        return self::_iconv_helper($this->_fs_enc, $this->_php_int_enc, $string);
     }
 
     /**
@@ -452,7 +490,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * + $name : nom du fichier concerné par cette annulation
      *
      * Retour : TRUE si l'opération a pu être menée à bien et FALSE en cas d'erreur
-     **/ 
+     **/
     public function unchangeName($name)
     {
         return parent::unchangeName($this->_phpToZip($name));
@@ -467,7 +505,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * - $flags : self::FL_UNCHANGED pour obtenir le commentaire d'origine (valeur par défaut : 0)
      *
      * Retour : FALSE en cas d'erreur ou une chaîne correspondant au commentaire (éventuellement vide s'il n'y a aucun commentaire)
-     **/ 
+     **/
     public function getCommentName($name, $flags = 0)
     {
         return parent::getCommentName($this->_phpToZip($name), $flags);
@@ -481,7 +519,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * + $name : nom de l'entrée
      *
      * Retour : FALSE en cas d'erreur ou alors une ressource
-     **/ 
+     **/
     public function getStream($entry)
     {
         return parent::getStream($this->_phpToZip($entry));
@@ -674,11 +712,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function addPattern($pattern, $path = '.', $options = array())
     {
         if (!file_exists($path)) {
-            throw new Exception("Le chemin '$path' n'existe pas");
+            throw new Exception($this->_fileToPHP("Le chemin '$path' n'existe pas"));
         }
 
         if (!is_dir($path)) {
-            throw new Exception("Le chemin '$path' existe mais n'est pas un répertoire");
+            throw new Exception($this->_fileToPHP("Le chemin '$path' existe mais n'est pas un répertoire"));
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
@@ -754,11 +792,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function addRecursive($directory)
     {
         if (!file_exists($directory)) {
-            throw new Exception("Le chemin '$directory' n'existe pas");
+            throw new Exception($this->_fileToPHP("Le chemin '$directory' n'existe pas"));
         }
 
         if (!is_dir($directory)) {
-            throw new Exception("Le chemin '$directory' existe mais n'est pas un répertoire");
+            throw new Exception($this->_fileToPHP("Le chemin '$directory' existe mais n'est pas un répertoire"));
         }
 
         $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory), RecursiveIteratorIterator::SELF_FIRST);
