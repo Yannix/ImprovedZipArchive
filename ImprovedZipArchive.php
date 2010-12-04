@@ -536,7 +536,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function mkdir_p($path)
     {
         $parts = preg_split('#/|' . preg_quote(DIRECTORY_SEPARATOR) . '#', $path, -1, PREG_SPLIT_NO_EMPTY);
-        $base = '';
+        $base = (mb_substr($path, 0, 1) == '/' ? '/' : '');
         foreach ($parts as $p) {
             if (!file_exists($base . $p)) {
                 if (!mkdir($base . $p)) {
@@ -575,8 +575,10 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                 if (!self::mkdir_p(dirname($to))) {
                     return FALSE;
                 }
-                if (file_put_contents($to, $content) === FALSE) {
-                    return FALSE;
+                if (mb_substr($name, -1, 1) != '/') {
+                    if (file_put_contents($to, $content) === FALSE) { // === pour permettre la création de fichier vide (renverrait 0)
+                        return FALSE;
+                    }
                 }
             }
         } else {
@@ -592,8 +594,10 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                 if (!self::mkdir_p(dirname($to))) {
                     return FALSE;
                 }
-                if (file_put_contents($to, $content) === FALSE) { // === pour permettre la création de fichier vide (renverrait 0)
-                    return FALSE;
+                if (mb_substr($name, -1, 1) != '/') {
+                    if (file_put_contents($to, $content) === FALSE) { // === pour permettre la création de fichier vide (renverrait 0)
+                        return FALSE;
+                    }
                 }
             }
         }
