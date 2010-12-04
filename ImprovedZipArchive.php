@@ -16,7 +16,6 @@
  * A faire :
  * - encoder/décoder les commentaires (en/de $_zip_enc) ?
  * - constructeur : vérifier les encodages ? sauf que mbstring ne les gère pas tous contrairement à iconv et cette dernière ne le permet pas directement (à moins d'un test avec iconv - qui renverrait alors FALSE)
- * - addRecursive : ajouter les options ?
  * - _add_option : encodages à gérer (options add_path et remove_path : php => fs) ?
  *
  * Notes :
@@ -796,7 +795,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
     }
 
-    public function addRecursive($directory)
+    public function addRecursive($directory, $options = array())
     {
         if (!file_exists($directory)) {
             throw new Exception($this->_fileToPHP("Le chemin '$directory' n'existe pas"));
@@ -806,15 +805,19 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             throw new Exception($this->_fileToPHP("Le chemin '$directory' existe mais n'est pas un répertoire"));
         }
 
+        $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
         $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iter as $entry) {
-            if ($entry->isDir()) {
-                if (!$this->addEmptyDir($iter->getInnerIterator()->getSubPathname())) {
-                    return FALSE;
-                }
-            } else if ($entry->isFile()) {
-                if (!$this->addFile($iter->getRealPath(), $iter->getInnerIterator()->getSubPathname())) {
-                    return FALSE;
+            if ($entry->isDir() || $entry->isFile()) {
+                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
+                if ($entry->isDir()) {
+                    if (!$this->addEmptyDir($zipname)) {
+                        return FALSE;
+                    }
+                } else if ($entry->isFile()) {
+                    if (!$this->addFile($iter->getRealPath(), $zipname)) {
+                        return FALSE;
+                    }
                 }
             }
         }
