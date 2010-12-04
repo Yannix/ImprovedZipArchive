@@ -269,10 +269,12 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * Paramètres :
      * + $filename : le nom du fichier à ajouter
      * - $localname : son nom dans l'archive s'il doit être différent
+     * - $start : inutilisé par ZipArchive::addFile
+     * - $length : inutilisé par ZipArchive::addFile
      *
      * Retour : FALSE si l'opération échoue sinon TRUE
      **/
-    public function addFile($filename, $localname = '')
+    public function addFile($filename, $localname = '', $start = 0, $length = 0)
     {
         if ($localname === '') { // === pour permettre '0' comme nom de fichier
             $localname = $this->_phpToZip($filename);
@@ -348,12 +350,13 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      *
      * Paramètres :
      * + $index : indice du fichier ciblé (compris entre 0 et $this->numFiles - 1 inclus)
+     * - $flags : self::FL_UNCHANGED pour obtenir le commentaire d'origine (valeur par défaut : 0)
      *
      * Retour : FALSE en cas d'erreur et le nom du fichier dans le cas contraire
      **/
-    public function getNameIndex($index)
+    public function getNameIndex($index, $flags = 0)
     {
-        return $this->_zipToPHP(parent::getNameIndex($index));
+        return $this->_zipToPHP(parent::getNameIndex($index, $flags));
     }
 
     /**
