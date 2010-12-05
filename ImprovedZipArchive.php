@@ -2,11 +2,6 @@
 /**
  * Script encodé en UTF-8
  *
- * Historique :
- * - 01/06/2010 : version initiale
- * - 25/09/2010 : toute conversion illégale lève une exception
- * (caractère qui ne peut être représenté dans le jeu de destination - d'Unicode à un jeu restreint comme latin1)
- *
  * Auteur : julp (http://julp.developpez.com/) - adressez commentaires, suggestions, améliorations, etc
  *
  * Avertissement : cette classe est distribuée sans aucune garantie. Elle est purement expérimentale !
@@ -14,9 +9,14 @@
  * D'autant que l'extension zip manque quelque peu de stabilité et sa documentation n'est pas à jour.
  *
  * A faire :
+ * - supprimer _fileToPHP
  * - encoder/décoder les commentaires (en/de $_zip_enc) ?
  * - constructeur : vérifier les encodages ? sauf que mbstring ne les gère pas tous contrairement à iconv et cette dernière ne le permet pas directement (à moins d'un test avec iconv - qui renverrait alors FALSE)
- * - _add_option : encodages à gérer (options add_path et remove_path : php => fs) ?
+ * - encodage php/fs :
+ *     > _add_option : options add_path et remove_path (php => fs) ?
+ *     > addPattern : $pattern (php => fs) ?
+ *     > addGlob :  $pattern (php => fs) ?
+ *     > addRecursive : $directory (php => fs) ?
  *
  * Notes :
  * - le contenu des fichiers est intouché (à l'ajout au zip comme à l'extraction du zip)
@@ -25,14 +25,14 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 {
     const ENC_OLD_EUROPEAN = 'IBM850'; # CP850
     const ENC_OLD_NON_EUROPEAN = 'IBM437'; # CP437
-    const ENC_NEW = 'UTF-8';
+    //const ENC_NEW = 'UTF-8';
     const ENC_DEFAULT = self::ENC_OLD_EUROPEAN;
 
-    protected $_fs_enc;      // Encodage du système de fichier
-    protected $_php_int_enc; // Encodage de l'application PHP
-    protected $_zip_int_enc; // Encodage de l'archive ZIP
+    protected $_fs_enc;      // File System encoding
+    protected $_php_int_enc; // PHP encoding
+    protected $_zip_int_enc; // ZIP archive encoding
 
-    protected $_it_pos = 0;  // Position interne de l'itérateur
+    protected $_it_pos = 0;  // Internal position of the iterator
 
     /**
      * (visibilité resteinte)
@@ -77,19 +77,22 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $this->_zip_int_enc = $zip_enc;
 
         if (!$php_enc) {
-            $this->_php_int_enc = mb_internal_encoding() /*iconv_get_encoding('internal_encoding')*/;
+            $this->_php_int_enc = mb_internal_encoding();
         } else {
+            if (!mb_internal_encoding($php_enc)) {
+                throw new Exception(sprintf('Unknown encoding "%s"', $php_enc));
+            }
             $this->_php_int_enc = $php_enc;
         }
 
         if (!$fs_enc) {
-            $this->_fs_enc = mb_internal_encoding() /*iconv_get_encoding('internal_encoding')*/;
+            $this->_fs_enc = mb_internal_encoding();
         } else {
             $this->_fs_enc = $fs_enc;
         }
 
         if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
-            throw new Exception($this->_fileToPHP($errors[$ret]), $ret);
+            throw new Exception($this->_fileToPHP($errors[$ret]), $ret); // TODO
         }
     }
 
@@ -158,7 +161,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     protected static function _iconv_helper($from, $to, $string)
     {
         if (($ret = iconv($from, $to, $string)) === FALSE) {
-            throw new Exception($this->_fileToPHP(sprintf('Caractère illégal dans la chaîne de départ ou suite à la conversion de "%s" à "%s"', $from, $to)));
+            throw new Exception(sprintf('Illegal character in input string or due to the conversion from "%s" to "%s"', $from, $to));
         }
 
         return $ret;
@@ -718,11 +721,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function addPattern($pattern, $path = '.', $options = array())
     {
         if (!file_exists($path)) {
-            throw new Exception($this->_fileToPHP("Le chemin '$path' n'existe pas"));
+            throw new Exception(sprintf('"%s" does not exist', $path));
         }
 
         if (!is_dir($path)) {
-            throw new Exception($this->_fileToPHP("Le chemin '$path' existe mais n'est pas un répertoire"));
+            throw new Exception(sprintf('"%s" exists and is not a directory', $path));
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
@@ -798,11 +801,11 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function addRecursive($directory, $options = array())
     {
         if (!file_exists($directory)) {
-            throw new Exception($this->_fileToPHP("Le chemin '$directory' n'existe pas"));
+            throw new Exception(sprintf('"%s" does not exist', $path));
         }
 
         if (!is_dir($directory)) {
-            throw new Exception($this->_fileToPHP("Le chemin '$directory' existe mais n'est pas un répertoire"));
+            throw new Exception(sprintf('"%s" exists and is not a directory', $path));
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
@@ -878,7 +881,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function __toString()
     {
         return sprintf(
-            '%s (nom : %s, fichier(s) : %d, commentaire : %s, encodings : zip = %s, php = %s, file system = %s)',
+            '%s (name: %s, file(s): %d, comment: %s, encodings: zip = %s, php = %s, file system = %s)',
             get_called_class(),
             $this->_fsToPHP($this->filename),
             $this->numFiles,
@@ -889,16 +892,3 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         );
     }
 }
-
-/*
-# Exemple avec script en UTF-8, système de fichiers en ISO-8859-1 et zip en IBM850 :
-
-mb_internal_encoding('UTF-8');
-header('Content-type: text/html; charset=utf-8');
-
-$zip = ImprovedZipArchive::overwrite('élèves.zip', 'ISO-8859-1');
-$zip->addFromString('Anaïs.txt', 'Un élève de la classe de CM2');
-$zip->addFile('foobar/eloïse.txt');
-echo $zip;
-$zip->close();
-*/
