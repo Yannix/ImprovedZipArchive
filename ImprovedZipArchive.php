@@ -23,6 +23,8 @@
  **/
 class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 {
+    const VERSION = '0.2.1';
+
     const ENC_OLD_EUROPEAN = 'IBM850'; # CP850
     const ENC_OLD_NON_EUROPEAN = 'IBM437'; # CP437
     //const ENC_NEW = 'UTF-8';
@@ -48,30 +50,30 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     protected function __construct($name, $mode, $fs_enc, $php_enc, $zip_enc)
     {
         static $errors = array(
-            self::ER_OK          => 'Aucune erreur',
-            self::ER_MULTIDISK   => 'Archives multi-disques non supportée',
-            self::ER_RENAME      => 'Erreur lors de la modification du nom du fichier temporaire',
-            self::ER_CLOSE       => "Erreur lors de la fermeture de l'archive",
-            self::ER_SEEK        => 'Erreur de déplacement',
-            self::ER_READ        => 'Erreur de lecture',
-            self::ER_WRITE       => "Erreur d'écriture",
-            self::ER_CRC         => 'Erreur dans la somme CRC',
-            self::ER_ZIPCLOSED   => "L'archive ZIP est fermée",
-            self::ER_NOENT       => 'Fichier inexistant',
-            self::ER_EXISTS      => 'Le fichier est déjà présent',
-            self::ER_OPEN        => 'Ne peut ouvrir le fichier',
-            self::ER_TMPOPEN     => 'Erreur lors de la création du fichier temporaire',
-            self::ER_ZLIB        => 'Erreur interne liée à la librairie Zlib',
-            self::ER_MEMORY      => "Erreur d'allocation dynamique de mémoire",
-            self::ER_CHANGED     => "L'entrée a été modifiée",
-            self::ER_COMPNOTSUPP => 'Méthode de compression non supportée',
-            self::ER_EOF         => 'Fin de fichier rencontrée prématurément',
-            self::ER_INVAL       => 'Argument invalide',
-            self::ER_NOZIP       => "Ne s'agit pas d'une archive au format ZIP",
-            self::ER_INTERNAL    => 'Erreur interne',
-            self::ER_INCONS      => 'Archive inconsistente',
-            self::ER_REMOVE      => 'Ne peut supprimer un fichier',
-            self::ER_DELETED     => 'Entrée supprimée'
+            self::ER_OK          => 'No error',
+            self::ER_MULTIDISK   => 'Multi-disk zip archives not supported',
+            self::ER_RENAME      => 'Renaming temporary file failed',
+            self::ER_CLOSE       => 'Closing zip archive failed',
+            self::ER_SEEK        => 'Seek error',
+            self::ER_READ        => 'Read error',
+            self::ER_WRITE       => 'Write error',
+            self::ER_CRC         => 'CRC error',
+            self::ER_ZIPCLOSED   => 'Containing zip archive was closed',
+            self::ER_NOENT       => 'No such file',
+            self::ER_EXISTS      => 'File already exists',
+            self::ER_OPEN        => "Can't open file",
+            self::ER_TMPOPEN     => 'Failure to create temporary file',
+            self::ER_ZLIB        => 'Zlib error',
+            self::ER_MEMORY      => 'Malloc failure',
+            self::ER_CHANGED     => 'Entry has been changed',
+            self::ER_COMPNOTSUPP => 'Compression method not supported',
+            self::ER_EOF         => 'Premature EOF',
+            self::ER_INVAL       => 'Invalid argument',
+            self::ER_NOZIP       => 'Not a zip archive',
+            self::ER_INTERNAL    => 'Internal error',
+            self::ER_INCONS      => 'Zip archive inconsistent',
+            self::ER_REMOVE      => "Can't remove file",
+            self::ER_DELETED     => 'Entry has been deleted',
         );
 
         $this->_zip_int_enc = $zip_enc;
@@ -92,7 +94,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
-            throw new Exception($this->_fileToPHP($errors[$ret]), $ret); // TODO
+            throw new Exception($errors[$ret], $ret);
         }
     }
 
@@ -165,20 +167,6 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         return $ret;
-    }
-
-    /**
-     * (visibilité resteinte)
-     * Conversion d'encodage des chaînes file => PHP
-     *
-     * Paramètres :
-     * + $string : la chaîne à convertir, d'origine UTF-8
-     *
-     * Retour : la chaîne convertie, destinée à PHP
-     **/
-    protected function _fileToPHP($string)
-    {
-        return self::_iconv_helper('UTF-8', $this->_php_int_enc . '//TRANSLIT', $string);
     }
 
     /**
@@ -285,6 +273,17 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         return parent::addFile($this->_phpToFs($filename), $localname);
+    }
+
+    protected function _addFileFromFS($filename, $localname = '')
+    {
+        if ($localname === '') { // === pour permettre '0' comme nom de fichier
+            $localname = $this->_fsToZip($filename);
+        } else {
+            $localname = $this->_phpToZip($localname);
+        }
+
+        return parent::addFile($this->_fsToZip($filename), $localname);
     }
 
     /**
@@ -658,6 +657,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      **/
     protected function _make_path($add_path, $remove_path, $remove_all_path, $dirname, $basename)
     {
+        $dirname = $this->_fsToPHP($dirname);
+        $basename = $this->_fsToPHP($basename);
+
         if ($add_path) {
             if ($remove_all_path) {
                 $zipname = $basename;
@@ -720,26 +722,29 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      **/
     public function addPattern($pattern, $path = '.', $options = array())
     {
-        if (!file_exists($path)) {
+        $_pattern = $this->_phpToFs($pattern);
+        $_path = $this->_phpToFs($path);
+
+        if (!file_exists($_path)) {
             throw new Exception(sprintf('"%s" does not exist', $path));
         }
 
-        if (!is_dir($path)) {
+        if (!is_dir($_path)) {
             throw new Exception(sprintf('"%s" exists and is not a directory', $path));
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
 
-        $iter = new RegexIterator(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path), RecursiveIteratorIterator::SELF_FIRST), $pattern);
+        $iter = new RegexIterator(new DirectoryIterator($_path), $_pattern);
         foreach ($iter as $entry) {
             if ($entry->isDir() || $entry->isFile()) {
-                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
+                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getPath(), $iter->getFilename());
                 if ($entry->isDir()) {
                     if (!$this->addEmptyDir($zipname)) {
                         return FALSE;
                     }
                 } else if ($entry->isFile()) {
-                    if (!$this->addFile($iter->getRealPath(), $zipname)) {
+                    if (!$this->_addFileFromFS($iter->getRealPath(), $zipname)) {
                         return FALSE;
                     }
                 }
@@ -781,7 +786,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
          * Nous n'utilisons pas la classe GlobIterator (SPL) dont les options sont totalement différentes
          * de la fonction glob (réellement appelée par ZipArchive->addGlob - enfin son implémentation PHP interne)
          **/
-        $ret = glob($pattern, $flags);
+        $ret = glob($this->_phpToFs($pattern), $flags);
         if ($ret === FALSE) { // ===, le tableau peut parfaitement être vide (aucun fichier ne correspond)
             return FALSE;
         } else {
@@ -789,7 +794,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
             foreach ($ret as $entry) {
                 $entry = self::_make_path($add_path, $remove_path, $remove_all_path, dirname($entry), basename($entry));
-                if (!$this->addFile($entry)) {
+                if (!$this->_addFileFromFS($entry)) {
                     return FALSE;
                 }
             }
@@ -800,16 +805,18 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public function addRecursive($directory, $options = array())
     {
-        if (!file_exists($directory)) {
-            throw new Exception(sprintf('"%s" does not exist', $path));
+        $_directory = $this->_phpToFs($directory);
+
+        if (!file_exists($_directory)) {
+            throw new Exception(sprintf('"%s" does not exist', $directory));
         }
 
-        if (!is_dir($directory)) {
-            throw new Exception(sprintf('"%s" exists and is not a directory', $path));
+        if (!is_dir($_directory)) {
+            throw new Exception(sprintf('"%s" exists and is not a directory', $directory));
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
-        $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory), RecursiveIteratorIterator::SELF_FIRST);
+        $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($_directory), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iter as $entry) {
             if ($entry->isDir() || $entry->isFile()) {
                 $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
@@ -818,7 +825,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                         return FALSE;
                     }
                 } else if ($entry->isFile()) {
-                    if (!$this->addFile($iter->getRealPath(), $zipname)) {
+                    if (!$this->_addFileFromFS($iter->getRealPath(), $zipname)) {
                         return FALSE;
                     }
                 }
