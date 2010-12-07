@@ -9,14 +9,8 @@
  * D'autant que l'extension zip manque quelque peu de stabilité et sa documentation n'est pas à jour.
  *
  * A faire :
- * - supprimer _fileToPHP
  * - encoder/décoder les commentaires (en/de $_zip_enc) ?
  * - constructeur : vérifier les encodages ? sauf que mbstring ne les gère pas tous contrairement à iconv et cette dernière ne le permet pas directement (à moins d'un test avec iconv - qui renverrait alors FALSE)
- * - encodage php/fs :
- *     > _add_option : options add_path et remove_path (php => fs) ?
- *     > addPattern : $pattern (php => fs) ?
- *     > addGlob :  $pattern (php => fs) ?
- *     > addRecursive : $directory (php => fs) ?
  *
  * Notes :
  * - le contenu des fichiers est intouché (à l'ajout au zip comme à l'extraction du zip)
@@ -47,7 +41,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      * + $php_enc : encodage de l'application PHP (si valeur fausse, déterminé par la fonction mb_internal_encoding)
      * + $zip_enc : encodage de l'archive ZIP
      **/
-    protected function __construct($name, $mode, $fs_enc, $php_enc, $zip_enc)
+    protected function __construct($name, $mode, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT)
     {
         static $errors = array(
             self::ER_OK          => 'No error',
@@ -94,7 +88,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
-            throw new Exception($errors[$ret], $ret);
+            throw new Exception($errors[$ret], $ret); // we can't use $this->getStatusString() (underlaying object uninitialized)
         }
     }
 
@@ -266,7 +260,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      **/
     public function addFile($filename, $localname = '', $start = 0, $length = 0)
     {
-        if ($localname === '') { // === pour permettre '0' comme nom de fichier
+        if ($localname === '') { // === operator required to permit '0' as filename
             $localname = $this->_phpToZip($filename);
         } else {
             $localname = $this->_phpToZip($localname);
@@ -277,7 +271,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected function _addFileFromFS($filename, $localname = '')
     {
-        if ($localname === '') { // === pour permettre '0' comme nom de fichier
+        if ($localname === '') { // === operator required to permit '0' as filename
             $localname = $this->_fsToZip($filename);
         } else {
             $localname = $this->_phpToZip($localname);
@@ -540,7 +534,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function mkdir_p($path)
     {
         $parts = preg_split('#/|' . preg_quote(DIRECTORY_SEPARATOR) . '#', $path, -1, PREG_SPLIT_NO_EMPTY);
-        $base = (mb_substr($path, 0, 1) == '/' ? '/' : '');
+        $base = (iconv_substr($path, 0, 1, $this->_fs_enc) == '/' ? '/' : '');
         foreach ($parts as $p) {
             if (!file_exists($base . $p)) {
                 if (!mkdir($base . $p)) {
@@ -569,10 +563,10 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     {
         if ($entries === NULL) {
             for ($i = 0; $i < $this->numFiles; $i++) {
-                if (($name = $this->getNameIndex($i)) === FALSE) { // === pour permettre '0' comme nom de fichier
+                if (($name = $this->getNameIndex($i)) === FALSE) { // === operator required to permit '0' as filename
                     return FALSE;
                 }
-                if (($content = $this->getFromIndex($i)) === FALSE) { // === pour permettre les fichiers vides ou contenant '0'
+                if (($content = $this->getFromIndex($i)) === FALSE) { // === operator required to permit '0' or empty content
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $name);
@@ -580,7 +574,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                     return FALSE;
                 }
                 if (mb_substr($name, -1, 1) != '/') {
-                    if (file_put_contents($to, $content) === FALSE) { // === pour permettre la création de fichier vide (renverrait 0)
+                    if (file_put_contents($to, $content) === FALSE) { // === operator required to permit empty file creation (0 returned)
                         return FALSE;
                     }
                 }
@@ -589,9 +583,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             if (is_string($entries)) {
                 $entries = array($entries);
             }
-            /* Alternative : combiner le stream wrapper zip à stream_copy_to_stream */
+            // Alternate way: combine the zip stream wrapper to stream_copy_to_stream
             foreach ($entries as $entry) {
-                if (($content = $this->getFromName($entry)) === FALSE) { // === pour permettre les fichiers vides ou contenant '0'
+                if (($content = $this->getFromName($entry)) === FALSE) { // === operator required to permit '0' or empty content
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $entry);
@@ -599,7 +593,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                     return FALSE;
                 }
                 if (mb_substr($name, -1, 1) != '/') {
-                    if (file_put_contents($to, $content) === FALSE) { // === pour permettre la création de fichier vide (renverrait 0)
+                    if (file_put_contents($to, $content) === FALSE) { // === operator required to permit empty file creation (0 returned)
                         return FALSE;
                     }
                 }
@@ -696,7 +690,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     /**
      * (réécrite)
-     * Ajouter, par parcours récursif d'un répertoire, tout fichier correspondant à un motif
+     * Ajouter, par parcours non récursif d'un répertoire, tout fichier correspondant à un motif
      *
      * Paramètres :
      * + $pattern : motif (PCRE) dont les fichiers qui correspondent seront ajoutés à l'archive
