@@ -531,7 +531,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
      *
      * Retour : FALSE en cas d'erreur, TRUE dans le cas contraire
      **/
-    public static function mkdir_p($path)
+    protected function mkdir_p($path)
     {
         $parts = preg_split('#/|' . preg_quote(DIRECTORY_SEPARATOR) . '#', $path, -1, PREG_SPLIT_NO_EMPTY);
         $base = (iconv_substr($path, 0, 1, $this->_fs_enc) == '/' ? '/' : '');
@@ -570,7 +570,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $name);
-                if (!self::mkdir_p(dirname($to))) {
+                if (!$this->mkdir_p(dirname($to))) {
                     return FALSE;
                 }
                 if (mb_substr($name, -1, 1) != '/') {
@@ -589,7 +589,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $entry);
-                if (!self::mkdir_p(dirname($to))) {
+                if (!$this->mkdir_p(dirname($to))) {
                     return FALSE;
                 }
                 if (mb_substr($name, -1, 1) != '/') {
