@@ -592,7 +592,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
                 if (!$this->mkdir_p(dirname($to))) {
                     return FALSE;
                 }
-                if (mb_substr($name, -1, 1) != '/') {
+                if (mb_substr($entry, -1, 1) != '/') { // not safe
                     if (file_put_contents($to, $content) === FALSE) { // === operator required to permit empty file creation (0 returned)
                         return FALSE;
                     }
