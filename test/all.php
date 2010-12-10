@@ -57,6 +57,8 @@ class TestOfImprovedZipArchive extends UnitTestCase {
 
     protected $archives = array();
 
+    /* File system helpers */
+
     protected static function php2fs($string) {
         return iconv('UTF-8', FS_ENCODING, $string);
     }
@@ -79,7 +81,7 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         return TRUE;
     }
 
-    protected static function create_file($path, $content) {
+    protected static function createFile($path, $content) {
         // TODO: add mkdir in case of inexistant parent directory?
         return file_put_contents(self::php2fs($path), $content);
     }
@@ -98,11 +100,27 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         return unlink(self::php2fs($path));
     }
 
+    /* Assertion helpers */
+
+    public function assertIsInt($value, $message = '%s') {
+        return $this->assertIsA($value, 'int', $message);
+    }
+
+    public function assertZipEntryExistsByName(ZipArchive $zip, $name, $message = '%s') {
+        return $this->assertIsInt($zip->locateName($name), $message);
+    }
+
+    public function assertZipEntryNameByIndex(ZipArchive $zip, $name, $index = 0, $message = '%s') {
+        return $this->assertIdentical($zip->getNameIndex($index), $name, $message);
+    }
+
+    /* Tests */
+
     public function __construct() {
         parent::__construct();
 
         self::mkdir(ABSOLUTE_INPUT_DIR);
-        self::create_file(ABSOLUTE_INPUT_DIR . '/quatrième.txt', uniqid());
+        self::createFile(ABSOLUTE_INPUT_DIR . '/quatrième.txt', uniqid());
         self::mkdir(ABSOLUTE_OUTPUT_DIR);
     }
 
@@ -129,7 +147,8 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         foreach ($inputs as $k => $v) {
             $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
             $this->assertTrue($zip->addFile($v . 'quatrième.txt'));
-            $this->assertIdentical($zip->getNameIndex(0), $v . 'quatrième.txt', __FUNCTION__ . ' ' . $k . ': %s');
+            //$this->assertIdentical($zip->getNameIndex(0), $v . 'quatrième.txt', __FUNCTION__ . ' ' . $k . ': %s');
+            $this->assertZipEntryNameByIndex($zip, $v . 'quatrième.txt');
             $zip->close();
             $zip = NULL;
             self::unlink($archivepath);
@@ -159,7 +178,8 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $archivepath = $this->makePath(__FUNCTION__);
         $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
         $this->assertTrue($zip->addFromString('fuß.txt', uniqid()));
-        $this->assertIdentical($zip->getNameIndex(0), 'fuß.txt');
+        //$this->assertIdentical($zip->getNameIndex(0), 'fuß.txt');
+        $this->assertZipEntryNameByIndex($zip, 'fuß.txt');
         $zip->close();
         $zip = NULL;
         self::unlink($archivepath);
@@ -169,7 +189,8 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $archivepath = $this->makePath(__FUNCTION__);
         $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
         $this->assertTrue($zip->addEmptyDir('encyclopædia', uniqid()));
-        $this->assertIdentical($zip->getNameIndex(0), 'encyclopædia/');
+        //$this->assertIdentical($zip->getNameIndex(0), 'encyclopædia/');
+        $this->assertZipEntryNameByIndex($zip, 'encyclopædia/');
         $zip->close();
         $zip = NULL;
         self::unlink($archivepath);
@@ -180,7 +201,17 @@ class TestOfImprovedZipArchive extends UnitTestCase {
     }
 
     public function testAddPattern() {
-        // TODO
+        self::createFile(ABSOLUTE_INPUT_DIR . 'aaa.txt', uniqid());
+        self::createFile(ABSOLUTE_INPUT_DIR . 'xçx.txt', uniqid());
+        $archivepath = $this->makePath(__FUNCTION__);
+        // TODO: iterate on $inputs?
+        $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
+        $zip->addPattern(FS_ENCODING == 'UTF-8' ? '~^\p{L}{3}\.txt$~u' : '~^\w{3}\.txt$~', RELATIVE_INPUT_DIR/*, array('add_path' => '')*/);
+        $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'aaa.txt');
+        $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'xçx.txt');
+        $zip->close();
+        $zip = NULL;
+        self::unlink($archivepath);
     }
 
     public function testStat() {

@@ -17,7 +17,7 @@
  **/
 class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 {
-    const VERSION = '0.2.1';
+    const VERSION = '0.2.2';
 
     const ENC_OLD_EUROPEAN = 'IBM850'; # CP850
     const ENC_OLD_NON_EUROPEAN = 'IBM437'; # CP437
@@ -277,7 +277,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             $localname = $this->_phpToZip($localname);
         }
 
-        return parent::addFile($this->_fsToZip($filename), $localname);
+        return parent::addFile($filename, $localname);
     }
 
     /**
@@ -630,9 +630,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
         if (isset($options['add_path']) && is_string($options['add_path'])) {
             $add_path = str_replace('\\', '/', $options['add_path']);
-            if (!in_array(mb_substr($add_path, -1), array('/', '\\'))) {
+            /*if (!in_array(mb_substr($add_path, -1, 1), array('/', '\\'))) { // add unwanted leading / on Windows
                 $add_path .= '/';
-            }
+            }*/
         }
     }
 
@@ -732,13 +732,13 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $iter = new RegexIterator(new DirectoryIterator($_path), $_pattern);
         foreach ($iter as $entry) {
             if ($entry->isDir() || $entry->isFile()) {
-                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getPath(), $iter->getFilename());
+                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $entry->getPath(), $entry->getFilename());
                 if ($entry->isDir()) {
                     if (!$this->addEmptyDir($zipname)) {
                         return FALSE;
                     }
                 } else if ($entry->isFile()) {
-                    if (!$this->_addFileFromFS($iter->getRealPath(), $zipname)) {
+                    if (!$this->_addFileFromFS($entry->getRealPath(), $zipname)) {
                         return FALSE;
                     }
                 }
@@ -787,8 +787,8 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
 
             foreach ($ret as $entry) {
-                $entry = self::_make_path($add_path, $remove_path, $remove_all_path, dirname($entry), basename($entry));
-                if (!$this->_addFileFromFS($entry)) {
+                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, dirname($entry), basename($entry));
+                if (!$this->_addFileFromFS($entry, $zipname)) {
                     return FALSE;
                 }
             }
