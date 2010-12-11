@@ -48,7 +48,7 @@ License: LGPL
     $zip = ImprovedZipArchive::create('élèves.zip', 'ISO-8859-1', 'UTF-8', ImprovedZipArchive::ENC_OLD_EUROPEAN);
     $zip->addFromString('CM2/Anaïs.txt', 'Un élève de la classe de CM2');
     $zip->addFile('CM2/Éloïse.txt');
-    $zip->addRecursive('/home/julp/CM1/', array('add_path' => '', 'remove_path' => '/home/julp/'));
+    $zip->addRecursive('/home/julp/CM1/', array('add_path' => '/CM1/', 'remove_path' => '/home/julp/CM1'));
     $zip->close();
 
 ## Contribute ##
@@ -65,5 +65,9 @@ are welcome.
 
 ## TODO ##
 
+* test add_path/remove_path/remove_all_path options (especially on windows with backslashes)
+* add a transliteration option (//TRANSLIT) ? May be usefull with some characters like œ
+* throw Exception instead of returning FALSE (except in ER_NOENT case ?) ?
+* make a recursive addPattern implementation ?
 * encode/decode comments (en/de $_zip_enc) ?
 * in constructor: check encodings ? But mbstring is more limited than iconv.
