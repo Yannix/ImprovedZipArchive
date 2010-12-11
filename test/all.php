@@ -197,14 +197,26 @@ class TestOfImprovedZipArchive extends UnitTestCase {
     }
 
     public function testAddGlob() {
-        // TODO
+        $subdir = 'cinquième/';
+        self::mkdir(ABSOLUTE_INPUT_DIR . $subdir);
+        self::createFile(ABSOLUTE_INPUT_DIR . $subdir . 'foo.txt', uniqid());
+        self::createFile(ABSOLUTE_INPUT_DIR . $subdir . 'aïe.txt', uniqid());
+        $archivepath = $this->makePath(__FUNCTION__);
+        // TODO: iterate on $inputs? (at least WIN_RELATIVE_INPUT_DIR should tested too)
+        $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
+        $zip->addGlob(RELATIVE_INPUT_DIR . '*/*.txt');
+        $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . $subdir . 'foo.txt');
+        $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . $subdir . 'aïe.txt');
+        $zip->close();
+        $zip = NULL;
+        self::unlink($archivepath);
     }
 
     public function testAddPattern() {
         self::createFile(ABSOLUTE_INPUT_DIR . 'aaa.txt', uniqid());
         self::createFile(ABSOLUTE_INPUT_DIR . 'xçx.txt', uniqid());
         $archivepath = $this->makePath(__FUNCTION__);
-        // TODO: iterate on $inputs?
+        // TODO: iterate on $inputs? (at least WIN_RELATIVE_INPUT_DIR should tested too)
         $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
         $zip->addPattern(FS_ENCODING == 'UTF-8' ? '~^\p{L}{3}\.txt$~u' : '~^\w{3}\.txt$~', RELATIVE_INPUT_DIR/*, array('add_path' => '')*/);
         $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'aaa.txt');
