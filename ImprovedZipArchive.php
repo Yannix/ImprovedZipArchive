@@ -812,7 +812,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
         $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($_directory), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iter as $entry) {
-            if ($entry->isDir() || $entry->isFile()) {
+            if (!$iter->isDot() && ($entry->isDir() || $entry->isFile())) {
                 $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
                 if ($entry->isDir()) {
                     if (!$this->addEmptyDir($zipname)) {
