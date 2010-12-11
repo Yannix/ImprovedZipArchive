@@ -65,6 +65,7 @@ are welcome.
 
 ## TODO ##
 
+* extractTo needs extra checks on $directory ?
 * test add_path/remove_path/remove_all_path options (especially on windows with backslashes)
 * add a transliteration option (//TRANSLIT) ? May be usefull with some characters like œ
 * throw Exception instead of returning FALSE (except in ER_NOENT case ?) ?
