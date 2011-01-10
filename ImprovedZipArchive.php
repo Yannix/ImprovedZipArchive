@@ -20,12 +20,13 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     protected $_fs_enc;      // File System encoding
     protected $_php_int_enc; // PHP encoding
     protected $_zip_int_enc; // ZIP archive encoding
+    protected $_translit;    // Transliterate?
 
     protected $_it_pos = 0;  // Internal position of the iterator
 
-    protected function __construct($name, $mode, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT)
+    protected function __construct(/*$name, $mode, */$fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        static $errors = array(
+        /*static $errors = array(
             self::ER_OK          => 'No error',
             self::ER_MULTIDISK   => 'Multi-disk zip archives not supported',
             self::ER_RENAME      => 'Renaming temporary file failed',
@@ -50,7 +51,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             self::ER_INCONS      => 'Zip archive inconsistent',
             self::ER_REMOVE      => "Can't remove file",
             self::ER_DELETED     => 'Entry has been deleted',
-        );
+        );*/
 
         $this->_zip_int_enc = $zip_enc;
 
@@ -69,27 +70,49 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             $this->_fs_enc = $fs_enc;
         }
 
-        if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
+        $this->_translit = $translit;
+
+        /*if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
             throw new Exception($errors[$ret], $ret); // we can't use $this->getStatusString() (underlaying object uninitialized)
+        }*/
+    }
+
+    public function open($name, $flags = 0)
+    {
+        return parent::open($this->_phpToFs($name), $flags);
+    }
+
+    public static function read($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
+    {
+        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        if (TRUE !== $iza->open($name, 0)) {
+            return NULL; // TODO
         }
+
+        return $iza;
     }
 
-    public static function read($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT)
+    public static function create($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        $class = __CLASS__; // get_called_class if PHP >= 5.3.0?
-        return new $class($name, 0, $fs_enc, $php_enc, $zip_enc);
+        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        if (TRUE !== $iza->open($name, self::CREATE | self::EXCL)) {
+            return NULL; // TODO
+        }
+
+        return $iza;
     }
 
-    public static function create($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT)
+    public static function overwrite($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        $class = __CLASS__; // get_called_class if PHP >= 5.3.0?
-        return new $class($name, self::CREATE | self::EXCL, $fs_enc, $php_enc, $zip_enc);
-    }
+        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        if (TRUE !== $iza->open($name, self::OVERWRITE)) {
+            return NULL; // TODO
+        }
 
-    public static function overwrite($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT)
-    {
-        $class = __CLASS__; // get_called_class if PHP >= 5.3.0?
-        return new $class($name, self::OVERWRITE, $fs_enc, $php_enc, $zip_enc);
+        return $iza;
     }
 
     protected static function _iconv_helper($from, $to, $string)
@@ -103,7 +126,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected function _phpToZip($string)
     {
-        return self::_iconv_helper($this->_php_int_enc, $this->_zip_int_enc, $string);
+        return self::_iconv_helper($this->_php_int_enc, $this->_translit ? $this->_zip_int_enc . '//TRANSLIT' : $this->_zip_int_enc, $string);
     }
 
     protected function _zipToPHP($string)
@@ -118,7 +141,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected function _fsToZip($string)
     {
-        return self::_iconv_helper($this->_fs_enc, $this->_zip_int_enc, $string);
+        return self::_iconv_helper($this->_fs_enc, $this->_translit ? $this->_zip_int_enc . '//TRANSLIT' : $this->_zip_int_enc, $string);
     }
 
     protected function _phpToFs($string)

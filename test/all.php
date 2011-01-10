@@ -63,6 +63,7 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         return iconv('UTF-8', FS_ENCODING, $string);
     }
 
+    // From ImprovedZipArchive.php
     protected static function mkdir($path) {
         $path = self::php2fs($path);
         $parts = preg_split('#/|' . preg_quote(DIRECTORY_SEPARATOR) . '#', $path, -1, PREG_SPLIT_NO_EMPTY);
@@ -238,6 +239,20 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $ret = $zip->statIndex(0);
         $this->assertTrue(is_array($ret) && isset($ret['name']));
         $this->assertIdentical($ret['name'], $entry);
+        $zip->close();
+        $zip = NULL;
+        self::unlink($archivepath);
+    }
+
+    public function testTranslit() {
+        $real_entry = 'Le nœud éléphant';
+        $transliterate_entry = 'Le noeud éléphant'; // œ doesn't exist in CP850, but é does
+        $archivepath = $this->makePath(__FUNCTION__);
+        $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850', TRUE);
+        $this->assertTrue($zip->addFromString($real_entry, uniqid()));
+        $this->assertZipEntryExistsByName($zip, $transliterate_entry);
+        $this->assertZipEntryExistsByName($zip, $real_entry);
+        // TODO: extract it? and does it is_file?
         $zip->close();
         $zip = NULL;
         self::unlink($archivepath);
