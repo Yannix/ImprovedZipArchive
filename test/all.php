@@ -2,11 +2,15 @@
 /**
  * Encoding: UTF-8
  * Requirements:
- * - PHP 5.3, with extensions: spl, zip, pcre, iconv, mbstring
+ * - PHP 5 with extensions: spl, zip, pcre, iconv, mbstring
  * - SimpleTest (not bundled)
  **/
 
 mb_internal_encoding('UTF-8');
+
+if (!defined('__DIR__')) {
+    define('__DIR__', dirname(__FILE__));
+}
 
 if (PHP_SAPI != 'cli') {
     die("It is a very bad idea to run these tests with a non CLI sapi.");

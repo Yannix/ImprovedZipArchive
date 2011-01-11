@@ -71,4 +71,4 @@ are welcome.
 * throw Exception instead of returning FALSE (except in ER_NOENT case ?) ?
 * make a recursive addPattern implementation ?
 * encode/decode comments (en/de $_zip_enc) ?
-* in constructor: check encodings ? But mbstring is more limited than iconv.
+* in constructor: check encodings ? But mbstring and iconv are both limited in a different way.

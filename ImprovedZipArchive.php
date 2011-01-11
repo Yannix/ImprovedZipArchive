@@ -24,7 +24,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected $_it_pos = 0;  // Internal position of the iterator
 
-    protected function __construct(/*$name, $mode, */$fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
+    public function __construct(/*$name, $mode, */$fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
         /*static $errors = array(
             self::ER_OK          => 'No error',
@@ -84,7 +84,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public static function read($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
         /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, 0)) {
             return NULL; // TODO
@@ -95,7 +95,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public static function create($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
         /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, self::CREATE | self::EXCL)) {
             return NULL; // TODO
@@ -106,7 +106,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public static function overwrite($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
-        $class = __CLASS__; // use LSB (requires PHP >= 5.3.0)?
+        $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
         /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, self::OVERWRITE)) {
             return NULL; // TODO
@@ -491,7 +491,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     {
         return sprintf(
             '%s (name: %s, file(s): %d, comment: %s, encodings: zip = %s, php = %s, file system = %s)',
-            get_called_class(),
+            version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__,
             $this->_fsToPHP($this->filename),
             $this->numFiles,
             $this->comment ? $this->comment : '-',
