@@ -11,21 +11,63 @@ class ImprovedZipStreamWrapper {
 
     protected $_data_length; // Data length (in bytes)
 
-    public static function register() {
+    public static function register()
+    {
         stream_wrapper_unregister('zip');
-        stream_wrapper_register('zip', /*version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : */__CLASS__);
+        stream_wrapper_register('zip', version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__);
     }
 
-    public function stream_open($path, $mode, $options, &$opened_path) {
+    protected function _parse($url, &$archivepath, &$entry) // instance method, should consider (PHP) encoding
+    {
+        if (($fragment_pos = mb_strpos($url, '#')) === FALSE) {
+            return FALSE;
+        }
+
+        $archivepath = mb_substr($url, strlen('zip://'), $fragment_pos - strlen('zip://'));
+        $entry = mb_substr($url, $fragment_pos + 1);
+
+        if ($archivepath === '' || $entry === '') {
+            return FALSE;
+        }
+
+        return TRUE; //array('archivepath' => $archivepath, 'entry' => $entry);
+    }
+
+    protected function _open($archivepath)
+    {
+        static $default_options = array(
+            'translit' => FALSE,
+            'encodings' => array(
+                'fs' => '',
+                'php' => '',
+                'zip' => ImprovedZipArchive::ENC_DEFAULT,
+            ),
+        );
+        $options = array_merge($default_options, stream_context_get_options($this->context));
+
+        $this->_archive = ImprovedZipArchive::read(
+            $archivepath,
+            $options['encodings']['fs'],
+            $options['encodings']['php'],
+            $options['encodings']['zip'],
+            $options['translit']
+        );
+
+        // return ?
+        return TRUE;
+    }
+
+    public function stream_open($url, $mode, /* unused */ $options, /*unused */ &$opened_path)
+    {
         if ($mode[0] != 'r') {
             return FALSE;
         }
-        if (($fragment_pos = mb_strpos($path, '#')) === FALSE) {
+        if (!$this->_parse($url, $archivepath, $entry)) {
             return FALSE;
         }
-        $archivepath = mb_substr($path, strlen('zip://'), $fragment_pos - strlen('zip://'));
-        $entry = mb_substr($path, $fragment_pos + 1);
-        $this->_archive = call_user_func_array('ImprovedZipArchive::read', array_values(array_merge(array($archivepath, 'FS' => '', 'PHP' => '', 'ZIP' => ImprovedZipArchive::ENC_DEFAULT), stream_context_get_options($this->context))));
+        if (!$this->_open($archivepath)) {
+            return FALSE;
+        }
         if (($this->_entry_index = $this->_archive->locateName($entry)) === FALSE) {
             return FALSE;
         }
@@ -37,35 +79,42 @@ class ImprovedZipStreamWrapper {
         return TRUE;
     }
 
-    public function stream_stat() {
+    public function stream_stat()
+    {
         return $this->_archive->statIndex($this->_offset);
     }
 
-    public function stream_read($count) {
+    public function stream_read($count)
+    {
         $ret = substr($this->_data, $this->_offset, $count);
         $this->_offset += strlen($ret);
         return $ret;
     }
 
-    public function stream_tell() {
+    public function stream_tell()
+    {
         return $this->_offset;
     }
 
-    public function stream_eof() {
+    public function stream_eof()
+    {
         return $this->_offset >= $this->_data_length;
     }
 
-    public function stream_close() {
+    public function stream_close()
+    {
         $this->_archive->close();
     }
 
-    public function stream_seek($offset, $whence) {
+    public function stream_seek($offset, $whence)
+    {
         switch ($whence) {
             case SEEK_SET:
                 if ($offset < $this->_data_length && $offset >= 0) {
                      $this->_offset = $offset;
                      return TRUE;
                 }
+                break;
             case SEEK_CUR:
                 if ($offset >= 0) {
                      $this->_offset += $offset;
@@ -79,6 +128,57 @@ class ImprovedZipStreamWrapper {
                 }
                 break;
         }
+
         return FALSE;
+    }
+
+    public function mkdir($url, /* unused */ $mode, /* unused */ $options)
+    {
+        if (!$this->_parse($url, $archivepath, $entry)) {
+            return FALSE;
+        }
+        if (!$this->_open($archivepath)) {
+            return FALSE;
+        }
+
+        $ret = $this->_archive->addEmptyDir($entry);
+        $this->_archive->close();
+
+        return $ret;
+    }
+
+    public function rename($from, $to)
+    {
+        var_dump($from, $to);
+        // parse $from et $to: retrieve entry name and assume archivepath are the same
+        /*$ret = $this->_archive->renameName($entry);
+        $this->_archive->close();
+
+        return $ret;*/
+    }
+
+    protected function _rm($url)
+    {
+        if (!$this->_parse($url, $archivepath, $entry)) {
+            return FALSE;
+        }
+        if (!$this->_open($archivepath)) {
+            return FALSE;
+        }
+
+        $ret = $this->_archive->deleteName($entry);
+        $this->_archive->close();
+
+        return $ret;
+    }
+
+    public function rmdir($path, $options)
+    {
+        return $this->_rm($path);
+    }
+
+    public function unlink($path)
+    {
+        return $this->_rm($path);
     }
 }
