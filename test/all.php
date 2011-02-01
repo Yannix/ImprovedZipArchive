@@ -250,12 +250,18 @@ class TestOfImprovedZipArchive extends UnitTestCase {
 
     public function testTranslit() {
         $real_entry = 'Le nœud éléphant';
-        $transliterate_entry = 'Le noeud éléphant'; // œ doesn't exist in CP850, but é does
+        //$transliterate_entry = 'Le noeud éléphant'; // œ doesn't exist in CP850, but é does
+        $transliterate_entry = iconv('CP850', 'UTF-8', iconv('UTF-8', 'CP850//TRANSLIT', $real_entry));
         $archivepath = $this->makePath(__FUNCTION__);
         $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850', TRUE);
         $this->assertTrue($zip->addFromString($real_entry, uniqid()));
         $this->assertZipEntryExistsByName($zip, $transliterate_entry);
         $this->assertZipEntryExistsByName($zip, $real_entry);
+
+        self::createFile(RELATIVE_INPUT_DIR . 'nœud.txt', uniqid());
+        $this->assertTrue($zip->addFile(RELATIVE_INPUT_DIR . 'nœud.txt'));
+        $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'nœud.txt');
+
         // TODO: extract it? and does it is_file?
         $zip->close();
         $zip = NULL;
