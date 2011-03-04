@@ -10,8 +10,6 @@
  **/
 class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 {
-    const VERSION = '0.3.0';
-
     const ENC_OLD_EUROPEAN = 'IBM850'; # CP850
     const ENC_OLD_NON_EUROPEAN = 'IBM437'; # CP437
     //const ENC_NEW = 'UTF-8';
