@@ -365,7 +365,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function strip($prefix, $filename)
     {
         if (mb_strpos($filename, $prefix) === 0) {
-            $filename = mb_substr($filename, strlen($prefix));
+            $filename = mb_substr($filename, mb_strlen($prefix));
         }
 
         return $filename;
