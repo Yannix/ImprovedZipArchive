@@ -67,8 +67,7 @@ are welcome.
 
 * extractTo needs extra checks on $directory ?
 * test add_path/remove_path/remove_all_path options (especially on windows with backslashes)
-* add a transliteration option (//TRANSLIT) ? May be usefull with some characters like œ
+* add a transliteration option (//TRANSLIT) ? May be usefull with some characters like œ (implemented as experimental)
 * throw Exception instead of returning FALSE (except in ER_NOENT case ?) ?
 * make a recursive addPattern implementation ?
 * encode/decode comments (en/de $_zip_enc) ?
-* in constructor: check encodings ? But mbstring and iconv are both limited in a different way.
