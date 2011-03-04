@@ -53,6 +53,12 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             self::ER_DELETED     => 'Entry has been deleted',
         );*/
 
+        foreach (array($fs_enc, $php_enc, $zip_enc) as $enc) {
+            if (iconv($encoding, 'UTF-8', '') === FALSE) {
+                throw new Exception(sprintf('Unknown encoding "%s"', $enc));
+            }
+        }
+
         $this->_zip_int_enc = $zip_enc;
 
         if (!$php_enc) {
