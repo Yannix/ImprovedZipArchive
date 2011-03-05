@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 /**
  * Encoding: UTF-8
@@ -36,7 +37,7 @@ $inputs['RELATIVE_INPUT_DIR'] = 'premier/deuxième/troisième/'; // Trailing sla
 $inputs['ABSOLUTE_INPUT_DIR'] = TMP_DIR . $inputs['RELATIVE_INPUT_DIR'];
 $outputs = array();
 $outputs['RELATIVE_OUTPUT_DIR'] = 'où' . uniqid() . '/'; // Trailing slash required
-$outputs['ABSOLUTE_OUTPUT_DIR'] = TMP_DIR . $outputs ['RELATIVE_OUTPUT_DIR'];
+$outputs['ABSOLUTE_OUTPUT_DIR'] = TMP_DIR . $outputs['RELATIVE_OUTPUT_DIR'];
 
 if (WIN) {
     foreach (array_keys($inputs) as $k) {
@@ -87,13 +88,13 @@ class TestOfImprovedZipArchive extends UnitTestCase {
     }
 
     protected static function createFile($path, $content) {
-        // TODO: add mkdir in case of inexistant parent directory?
+        self::mkdir(dirname($path));
         return file_put_contents(self::php2fs($path), $content);
     }
 
     protected function makePath($methodname) {
-        $key = TMP_DIR . $methodname . '.zip';
-        //$this->archives[$key] = NULL;
+        $key = TMP_DIR . $methodname . '-' . date('Ymd') . '-' . uniqid() . '.zip';
+        $this->archives[$key] = NULL;
         return $key;
     }
 
@@ -101,8 +102,19 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         return is_file(self::php2fs($path));
     }
 
-    protected static function unlink($path) {
-        return unlink(self::php2fs($path));
+    protected static function rm_fr($path) {
+        $fspath = self::php2fs($path);
+        if (is_dir($fspath)) {
+            $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($fspath), RecursiveIteratorIterator::CHILD_FIRST);
+            foreach ($iter as $f) {
+                if (!$iter->isDot()) {
+                    call_user_func(array(__CLASS__, __FUNCTION__), $f->getRealPath());
+                }
+            }
+            rmdir($fspath);
+        } else {
+            unlink($fspath);
+        }
     }
 
     /* Assertion helpers */
@@ -130,33 +142,33 @@ class TestOfImprovedZipArchive extends UnitTestCase {
     }
 
     public function __destruct() {
-        /*array_walk(
-            array_keys($this->archives),
-            'self::unlink'
-        );*/
-        // rm -fr IN_PATH + OUT_PATH
+        $dirs = explode('/', RELATIVE_INPUT_DIR);
+        self::rm_fr(array_shift($dirs));
+        self::rm_fr(ABSOLUTE_OUTPUT_DIR);
     }
 
     public function setUp() {
-        //echo __FUNCTION__, PHP_EOL;
     }
 
     public function tearDown() {
-        //echo __FUNCTION__, PHP_EOL;
+        $files = array_keys($this->archives);
+        array_walk(
+            $files,
+            array(__CLASS__, 'rm_fr')
+        );
+        $this->archives = array();
     }
 
     public function testAddFile() {
         global $inputs;
 
-        $archivepath = $this->makePath(__FUNCTION__);
         foreach ($inputs as $k => $v) {
+            $archivepath = $this->makePath(__FUNCTION__);
             $zip = ImprovedZipArchive::create($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
             $this->assertTrue($zip->addFile($v . 'quatrième.txt'));
             //$this->assertIdentical($zip->getNameIndex(0), $v . 'quatrième.txt', __FUNCTION__ . ' ' . $k . ': %s');
             $this->assertZipEntryNameByIndex($zip, $v . 'quatrième.txt');
             $zip->close();
-            $zip = NULL;
-            self::unlink($archivepath);
         }
     }
 
@@ -168,15 +180,13 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         // On windows, absolute path gives an invalid path when extracting
         $this->assertTrue($zip->addFile(RELATIVE_INPUT_DIR . 'quatrième.txt'));
         $zip->close();
-        $zip = NULL;
+
         $zip = ImprovedZipArchive::read($archivepath, FS_ENCODING, 'UTF-8', 'CP850');
         foreach ($outputs as $k => $v) {
             $this->assertTrue($zip->extractTo($v));
             $this->assertTrue(self::is_file($v . (strpos($k, 'WIN_') === 0 ? WIN_RELATIVE_INPUT_DIR : RELATIVE_INPUT_DIR) . 'quatrième.txt'), __FUNCTION__ . ' ' . $k . ': %s'); // assertFileExists
         }
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testAddFromString() {
@@ -186,8 +196,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         //$this->assertIdentical($zip->getNameIndex(0), 'fuß.txt');
         $this->assertZipEntryNameByIndex($zip, 'fuß.txt');
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testAddEmptyDir() {
@@ -197,8 +205,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         //$this->assertIdentical($zip->getNameIndex(0), 'encyclopædia/');
         $this->assertZipEntryNameByIndex($zip, 'encyclopædia/');
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testAddGlob() {
@@ -213,8 +219,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . $subdir . 'foo.txt');
         $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . $subdir . 'aïe.txt');
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testAddPattern() {
@@ -227,8 +231,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'aaa.txt');
         $this->assertZipEntryExistsByName($zip, RELATIVE_INPUT_DIR . 'xçx.txt');
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testStat() {
@@ -244,8 +246,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
         $this->assertTrue(is_array($ret) && isset($ret['name']));
         $this->assertIdentical($ret['name'], $entry);
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 
     public function testTranslit() {
@@ -264,8 +264,6 @@ class TestOfImprovedZipArchive extends UnitTestCase {
 
         // TODO: extract it? and does it is_file?
         $zip->close();
-        $zip = NULL;
-        self::unlink($archivepath);
     }
 }
 
