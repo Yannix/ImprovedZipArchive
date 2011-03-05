@@ -52,7 +52,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         );*/
 
         foreach (array($fs_enc, $php_enc, $zip_enc) as $enc) {
-            if (iconv($encoding, 'UTF-8', '') === FALSE) {
+            if (iconv($enc, 'UTF-8', '') === FALSE) {
                 throw new Exception(sprintf('Unknown encoding "%s"', $enc));
             }
         }
