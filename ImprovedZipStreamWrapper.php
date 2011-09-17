@@ -19,14 +19,14 @@ class ImprovedZipStreamWrapper {
 
     protected function _parse($url, &$archivepath, &$entry) // instance method, should consider (PHP) encoding
     {
-        if (($fragment_pos = mb_strpos($url, '#')) === FALSE) {
+        if (FALSE === ($fragment_pos = mb_strpos($url, '#'))) {
             return FALSE;
         }
 
         $archivepath = mb_substr($url, strlen('zip://'), $fragment_pos - strlen('zip://'));
         $entry = mb_substr($url, $fragment_pos + 1);
 
-        if ($archivepath === '' || $entry === '') {
+        if ('' === $archivepath || '' === $entry) {
             return FALSE;
         }
 
@@ -53,13 +53,12 @@ class ImprovedZipStreamWrapper {
             $options['translit']
         );
 
-        // return ?
-        return TRUE;
+        return FALSE !== $this->_archive;
     }
 
     public function stream_open($url, $mode, /* unused */ $options, /*unused */ &$opened_path)
     {
-        if ($mode[0] != 'r') {
+        if ('r' != $mode[0]) {
             return FALSE;
         }
         if (!$this->_parse($url, $archivepath, $entry)) {
@@ -68,10 +67,10 @@ class ImprovedZipStreamWrapper {
         if (!$this->_open($archivepath)) {
             return FALSE;
         }
-        if (($this->_entry_index = $this->_archive->locateName($entry)) === FALSE) {
+        if (FALSE === ($this->_entry_index = $this->_archive->locateName($entry))) {
             return FALSE;
         }
-        if (($this->_data = $this->_archive->getFromIndex($this->_entry_index)) === FALSE) {
+        if (FALSE === ($this->_data = $this->_archive->getFromIndex($this->_entry_index))) {
             return FALSE;
         }
         $this->_data_length = strlen($this->_data);
@@ -149,12 +148,22 @@ class ImprovedZipStreamWrapper {
 
     public function rename($from, $to)
     {
-        var_dump($from, $to);
-        // parse $from et $to: retrieve entry name and assume archivepath are the same
-        /*$ret = $this->_archive->renameName($entry);
+        if (!$this->_parse($from, $fromarchivepath, $fromentry)) {
+            return FALSE;
+        }
+        if (!$this->_parse($to, $toarchivepath, $toentry)) {
+            return FALSE;
+        }
+        if ($fromarchivepath != $toarchivepath) {
+            return FALSE;
+        }
+        if (!$this->_open($fromarchivepath)) {
+            return FALSE;
+        }
+        $ret = $this->_archive->renameName($fromentry, $toentry);
         $this->_archive->close();
 
-        return $ret;*/
+        return $ret;
     }
 
     protected function _rm($url)
