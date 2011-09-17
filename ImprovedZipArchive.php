@@ -370,12 +370,15 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $_pattern = $this->_phpToFs($pattern);
         $_path = $this->_phpToFs($path);
 
-        if (!file_exists($_path)) {
+        /*if (!file_exists($_path)) {
             throw new Exception(sprintf('"%s" does not exist', $path));
         }
 
         if (!is_dir($_path)) {
             throw new Exception(sprintf('"%s" exists and is not a directory', $path));
+        }*/
+        if (!file_exists($_path) || !is_dir($_path)) {
+            return FALSE;
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
@@ -422,12 +425,15 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     {
         $_directory = $this->_phpToFs($directory);
 
-        if (!file_exists($_directory)) {
+        /*if (!file_exists($_directory)) {
             throw new Exception(sprintf('"%s" does not exist', $directory));
         }
 
         if (!is_dir($_directory)) {
             throw new Exception(sprintf('"%s" exists and is not a directory', $directory));
+        }*/
+        if (!file_exists($_directory) || !is_dir($_directory)) {
+            return FALSE;
         }
 
         $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
