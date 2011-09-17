@@ -10,7 +10,7 @@ ImprovedZipArchive is a PHP class which extends the native class ZipArchive from
 
 **Warning:**
 
-ImprovedZipArchive is **EXPERIMENTAL**. ImprovedZipArchive is free software (LGPL) and comes with ABSOLUTELY NO WARRANTY.
+ImprovedZipArchive is **EXPERIMENTAL**. ImprovedZipArchive is free software (BSD) and comes with ABSOLUTELY NO WARRANTY.
 
 
 **Requirements:**
