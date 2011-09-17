@@ -20,7 +20,7 @@ PHP 5 with extensions: zip, spl, pcre, mbstring and iconv.
 
 **Author:**
 
-julp ([website](http://julp.developpez.com/))
+julp
 
 
 **Many thanks to:**
@@ -30,7 +30,7 @@ julp ([website](http://julp.developpez.com/))
 
 ## License ##
 
-License: LGPL
+License: BSD
 
 ## Usage ##
 

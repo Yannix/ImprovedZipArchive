@@ -1,11 +1,9 @@
 <?php
 /**
- * ImprovedZipArchive:
+ * Copyright (c) 2011, julp
+ * Is free software, licensed under BSD
  *
- * Is free software, licensed under LGPL
- *
- * Hosted by github: https://github.com/julp/ImprovedZipArchive
- *
+ * Hosted on github: https://github.com/julp/ImprovedZipArchive
  * Documentation: https://github.com/julp/ImprovedZipArchive/wiki
  **/
 class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
@@ -22,7 +20,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected $_it_pos = 0;  // Internal position of the iterator
 
-    public function __construct(/*$name, $mode, */$fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
+    public function __construct($fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
         /*static $errors = array(
             self::ER_OK          => 'No error',
@@ -52,7 +50,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         );*/
 
         foreach (array($fs_enc, $php_enc, $zip_enc) as $enc) {
-            if (iconv($enc, 'UTF-8', '') === FALSE) {
+            if (FALSE === iconv($enc, 'UTF-8', '')) {
                 throw new Exception(sprintf('Unknown encoding "%s"', $enc));
             }
         }
@@ -75,10 +73,6 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         }
 
         $this->_translit = $translit;
-
-        /*if ($ret = $this->open($this->_phpToFs($name), $mode) !== TRUE) {
-            throw new Exception($errors[$ret], $ret); // we can't use $this->getStatusString() (underlaying object uninitialized)
-        }*/
     }
 
     public function open($name, $flags = 0)
@@ -89,9 +83,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function read($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
         $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
-        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        $iza = new $class($fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, 0)) {
-            return NULL; // TODO
+            return FALSE;
         }
 
         return $iza;
@@ -100,9 +94,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function create($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
         $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
-        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        $iza = new $class($fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, self::CREATE | self::EXCL)) {
-            return NULL; // TODO
+            return FALSE;
         }
 
         return $iza;
@@ -111,9 +105,9 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public static function overwrite($name, $fs_enc = '', $php_enc = '', $zip_enc = self::ENC_DEFAULT, $translit = FALSE)
     {
         $class = version_compare(PHP_VERSION, '5.3.0', '>=') ? get_called_class() : __CLASS__; // new static
-        /*return */$iza = new $class(/*$name, 0, */$fs_enc, $php_enc, $zip_enc, $translit);
+        $iza = new $class($fs_enc, $php_enc, $zip_enc, $translit);
         if (TRUE !== $iza->open($name, self::OVERWRITE)) {
-            return NULL; // TODO
+            return FALSE;
         }
 
         return $iza;
@@ -121,7 +115,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected static function _iconv_helper($from, $to, $string)
     {
-        if (($ret = iconv($from, $to, $string)) === FALSE) {
+        if (FALSE === ($ret = iconv($from, $to, $string))) {
             throw new Exception(sprintf('Illegal character in input string or due to the conversion from "%s" to "%s"', $from, $to));
         }
 
@@ -160,7 +154,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public function addFile($filename, $localname = '', $start = 0, $length = 0)
     {
-        if ($localname === '') { // === operator required to permit '0' as filename
+        if ('' === $localname) { // === allow '0' as filename
             $localname = $this->_phpToZip($filename);
         } else {
             $localname = $this->_phpToZip($localname);
@@ -171,7 +165,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     protected function _addFileFromFS($filename, $localname = '')
     {
-        if ($localname === '') { // === operator required to permit '0' as filename
+        if ('' === $localname) { // === allow '0' as filename
             $localname = $this->_fsToZip($filename);
         } else {
             $localname = $this->_phpToZip($localname);
@@ -262,7 +256,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     protected function mkdir_p($path)
     {
         $parts = preg_split('#/|' . preg_quote(DIRECTORY_SEPARATOR) . '#', $path, -1, PREG_SPLIT_NO_EMPTY);
-        $base = (iconv_substr($path, 0, 1, $this->_fs_enc) == '/' ? '/' : '');
+        $base = ('/' == iconv_substr($path, 0, 1, $this->_fs_enc) ? '/' : '');
         foreach ($parts as $p) {
             if (!file_exists($base . $p)) {
                 if (!mkdir($base . $p)) {
@@ -279,20 +273,20 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public function extractTo($destination, $entries = NULL)
     {
-        if ($entries === NULL) {
+        if (NULL === $entries) {
             for ($i = 0; $i < $this->numFiles; $i++) {
-                if (($name = $this->getNameIndex($i)) === FALSE) { // === operator required to permit '0' as filename
+                if (FALSE === ($name = $this->getNameIndex($i))) { // === allow '0' as filename
                     return FALSE;
                 }
-                if (($content = $this->getFromIndex($i)) === FALSE) { // === operator required to permit '0' or empty content
+                if (FALSE === ($content = $this->getFromIndex($i))) { // === allow '0' or empty content
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $name);
                 if (!$this->mkdir_p(dirname($to))) {
                     return FALSE;
                 }
-                if (mb_substr($name, -1, 1) != '/') {
-                    if (file_put_contents($to, $content) === FALSE) { // === operator required to permit empty file creation (0 returned)
+                if ('/' != mb_substr($name, -1, 1)) {
+                    if (FALSE === file_put_contents($to, $content)) { // === allow empty file creation (0 returned)
                         return FALSE;
                     }
                 }
@@ -303,15 +297,15 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
             }
             // Alternate way: combine the zip stream wrapper to stream_copy_to_stream
             foreach ($entries as $entry) {
-                if (($content = $this->getFromName($entry)) === FALSE) { // === operator required to permit '0' or empty content
+                if (FALSE === ($content = $this->getFromName($entry))) { // === allow '0' or empty content
                     return FALSE;
                 }
                 $to = $this->_phpToFs($destination . $entry);
                 if (!$this->mkdir_p(dirname($to))) {
                     return FALSE;
                 }
-                if (mb_substr($entry, -1, 1) != '/') { // not safe
-                    if (file_put_contents($to, $content) === FALSE) { // === operator required to permit empty file creation (0 returned)
+                if ('/' != mb_substr($entry, -1, 1)) { // not safe
+                    if (FALSE === file_put_contents($to, $content)) { // === allow empty file creation (0 returned)
                         return FALSE;
                     }
                 }
@@ -349,7 +343,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         if ($add_path) {
             if ($remove_all_path) {
                 $zipname = $basename;
-            } else if ($remove_path && mb_strpos($dirname, $remove_path) === 0) {
+            } else if ($remove_path && 0 === mb_strpos($dirname, $remove_path)) {
                 $zipname = self::strip($remove_path, $dirname . '/' . $basename);
             } else {
                 $zipname = $dirname . '/' . $basename;
@@ -364,7 +358,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
 
     public static function strip($prefix, $filename)
     {
-        if (mb_strpos($filename, $prefix) === 0) {
+        if (0 === mb_strpos($filename, $prefix)) {
             $filename = mb_substr($filename, mb_strlen($prefix));
         }
 
@@ -389,7 +383,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $iter = new RegexIterator(new DirectoryIterator($_path), $_pattern);
         foreach ($iter as $entry) {
             if ($entry->isDir() || $entry->isFile()) {
-                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $entry->getPath(), $entry->getFilename());
+                $zipname = $this->_make_path($add_path, $remove_path, $remove_all_path, $entry->getPath(), $entry->getFilename());
                 if ($entry->isDir()) {
                     if (!$this->addEmptyDir($zipname)) {
                         return FALSE;
@@ -408,13 +402,13 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
     public function addGlob($pattern, $flags = 0, $options = array())
     {
         $ret = glob($this->_phpToFs($pattern), $flags);
-        if ($ret === FALSE) { // Operator === required to distinguish empty array of FALSE (failure)
+        if (FALSE === $ret) { // === to distinguish empty array of failure (FALSE)
             return FALSE;
         } else {
             $this->_add_options($options, $add_path, $remove_path, $remove_all_path);
 
             foreach ($ret as $entry) {
-                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, dirname($entry), basename($entry));
+                $zipname = $this->_make_path($add_path, $remove_path, $remove_all_path, dirname($entry), basename($entry));
                 if (!$this->_addFileFromFS($entry, $zipname)) {
                     return FALSE;
                 }
@@ -440,7 +434,7 @@ class ImprovedZipArchive extends ZipArchive implements Iterator, Countable
         $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($_directory), RecursiveIteratorIterator::SELF_FIRST);
         foreach ($iter as $entry) {
             if (!$iter->isDot() && ($entry->isDir() || $entry->isFile())) {
-                $zipname = self::_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
+                $zipname = $this->_make_path($add_path, $remove_path, $remove_all_path, $iter->getInnerIterator()->getPath(), $iter->getInnerIterator()->getSubPathname());
                 if ($entry->isDir()) {
                     if (!$this->addEmptyDir($zipname)) {
                         return FALSE;
